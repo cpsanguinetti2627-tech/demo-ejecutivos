@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import TypingDots from './TypingDots';
 import CallStage from './CallStage';
 import { speak, stopSpeaking, isSpeechSupported } from '@/lib/speech';
+import { isDictationSupported, createDictation } from '@/lib/dictation';
 
 // Pausa simulada según el largo del texto, para cuando la voz no está
 // disponible (navegadores sin soporte de Web Speech API).
@@ -27,6 +28,13 @@ function speakAndWait(text, voiceConfig, onSpeakStart) {
   });
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(resolve, ms)),
+  ]);
+}
+
 // Intenta reproducir voz natural (ElevenLabs). Si no está configurada o falla,
 // hace fallback silencioso a la voz del navegador.
 async function speakBubble(text, executive) {
@@ -41,11 +49,14 @@ async function speakBubble(text, executive) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const audio = new Audio(url);
-        await new Promise((resolve) => {
-          audio.onended = resolve;
-          audio.onerror = resolve;
-          audio.play().catch(resolve);
-        });
+        await withTimeout(
+          new Promise((resolve) => {
+            audio.onended = resolve;
+            audio.onerror = resolve;
+            audio.play().catch(resolve);
+          }),
+          typingDelay(text) + 8000
+        );
         URL.revokeObjectURL(url);
         return;
       }
@@ -54,7 +65,7 @@ async function speakBubble(text, executive) {
     }
   }
   if (isSpeechSupported()) {
-    await speakAndWait(text, executive.voice, () => {});
+    await withTimeout(speakAndWait(text, executive.voice, () => {}), typingDelay(text) + 6000);
   } else {
     await sleep(typingDelay(text));
   }
@@ -66,11 +77,16 @@ export default function ChatScreen({ executive, onBack }) {
   const [isTyping, setIsTyping] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [sending, setSending] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
-    return () => stopSpeaking();
+    return () => {
+      stopSpeaking();
+      recognitionRef.current?.stop();
+    };
   }, []);
 
   useEffect(() => {
@@ -138,8 +154,36 @@ export default function ChatScreen({ executive, onBack }) {
     setMessages(next);
 
     const historyForApi = next.map(({ role, content }) => ({ role, content }));
-    await requestReply(historyForApi);
-    setSending(false);
+    try {
+      await requestReply(historyForApi);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function toggleDictation() {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const recognition = createDictation({
+      lang: 'es-CL',
+      onResult: (transcript) => setInput(transcript),
+      onEnd: () => {
+        setIsRecording(false);
+        recognitionRef.current = null;
+      },
+      onError: () => {
+        setIsRecording(false);
+        recognitionRef.current = null;
+      },
+    });
+
+    if (!recognition) return;
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    recognition.start();
   }
 
   function handleKeyDown(e) {
@@ -166,18 +210,23 @@ export default function ChatScreen({ executive, onBack }) {
       <CallStage executive={executive} isSpeaking={isSpeaking} statusText={statusText} />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
-        {messages.map((m, idx) => (
-          <div
-            key={idx}
-            className={`animate-rise max-w-[78%] px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed ${
-              m.role === 'user'
-                ? 'self-end bg-navy text-paper rounded-br-md'
-                : 'self-start bg-paper text-ink border border-line rounded-bl-md'
-            }`}
-          >
-            {m.content}
-          </div>
-        ))}
+        {messages.map((m, idx) =>
+          m.role === 'user' ? (
+            <div
+              key={idx}
+              className="animate-rise self-end max-w-[78%] px-4 py-2.5 rounded-2xl rounded-br-md text-[15px] leading-relaxed bg-navy text-paper"
+            >
+              {m.content}
+            </div>
+          ) : (
+            <div
+              key={idx}
+              className="animate-rise self-start max-w-[85%] px-1 py-1 text-[14px] leading-relaxed text-slate italic"
+            >
+              {m.content}
+            </div>
+          )
+        )}
         {isTyping && (
           <div className="self-start bg-paper border border-line rounded-2xl rounded-bl-md">
             <TypingDots />
@@ -191,9 +240,23 @@ export default function ChatScreen({ executive, onBack }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Escribe un mensaje..."
+          placeholder={isRecording ? 'Escuchando...' : 'Escribe un mensaje...'}
           className="flex-1 resize-none bg-mist rounded-2xl px-4 py-2.5 text-[15px] text-ink outline-none max-h-28"
         />
+        {isDictationSupported() && (
+          <button
+            onClick={toggleDictation}
+            aria-label={isRecording ? 'Detener dictado' : 'Hablar'}
+            className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
+              isRecording ? 'bg-red-500 text-paper animate-pulse' : 'bg-mist text-slate'
+            }`}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M19 11a7 7 0 01-14 0M12 18v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
         <button
           onClick={handleSend}
           disabled={!input.trim() || sending}
