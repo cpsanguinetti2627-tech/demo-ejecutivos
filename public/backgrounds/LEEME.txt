@@ -1,0 +1,11 @@
+Coloca aquí una foto de fondo con este nombre EXACTO:
+
+- office.jpg
+
+Recomendación: una foto de oficina moderna, con gente trabajando de fondo
+(desenfocada queda mejor), de bancos gratuitos para uso comercial:
+
+- https://unsplash.com  (busca: "modern office people working")
+- https://www.pexels.com
+
+Si no agregas la foto, el fondo se ve de un color sólido (navy), sin romperse.

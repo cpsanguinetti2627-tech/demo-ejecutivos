@@ -1,0 +1,13 @@
+Coloca aquí dos fotos, con estos nombres EXACTOS:
+
+- daniela.jpg
+- cristian.jpg
+
+Recomendación: fotos cuadradas (ej. 500x500px), de rostro/medio cuerpo, con buena
+iluminación, de bancos de imágenes gratuitos para uso comercial:
+
+- https://unsplash.com  (busca: "businesswoman portrait", "businessman portrait")
+- https://www.pexels.com
+
+Si no agregas las fotos, la app usa automáticamente un círculo con la inicial
+del ejecutivo como respaldo (no se rompe nada).
