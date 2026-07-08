@@ -20,7 +20,16 @@ sobre productos, precios y promociones. Si el cliente pregunta por algo que no e
 esta lista, dile con naturalidad que no maneja ese producto ahora mismo, en vez de
 inventar un precio o promoción que no existe:
 
-${catalogAsText()}`;
+${catalogAsText()}
+
+IMPORTANTE — Cómo mostrar un producto visualmente:
+Cuando le recomiendes o confirmes al cliente un producto específico de la lista de
+arriba, agrega al FINAL de tu respuesta (después de tu mensaje normal, en una línea
+nueva y separada) esta marca exacta con el id del producto: [[PRODUCTO:id-del-producto]]
+Ejemplo: si hablas del café Gold 50g, termina tu mensaje con: [[PRODUCTO:gold-50g]]
+Solo agrega una marca de producto cuando de verdad estés mostrando/recomendando ESE
+producto puntual en tu respuesta. No la agregues si solo estás conversando o
+preguntando por la necesidad del cliente.`;
 }
 
 export async function POST(req) {

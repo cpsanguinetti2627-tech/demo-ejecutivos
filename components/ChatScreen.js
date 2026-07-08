@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import TypingDots from './TypingDots';
 import CallStage from './CallStage';
+import ProductCard from './ProductCard';
 import { speak, stopSpeaking, isSpeechSupported } from '@/lib/speech';
 import { isDictationSupported, createDictation } from '@/lib/dictation';
 
@@ -127,10 +128,15 @@ export default function ChatScreen({ executive, onBack }) {
         setIsTyping(true);
         await sleep(i === 0 ? 500 : typingDelay(bubbles[i]) * 0.4);
         setIsTyping(false);
-        setMessages((prev) => [...prev, { role: 'assistant', content: bubbles[i] }]);
+
+        const productMatch = bubbles[i].match(/\[\[PRODUCTO:([a-z0-9-]+)\]\]/i);
+        const productId = productMatch ? productMatch[1] : null;
+        const cleanText = bubbles[i].replace(/\[\[PRODUCTO:[a-z0-9-]+\]\]/i, '').trim();
+
+        setMessages((prev) => [...prev, { role: 'assistant', content: cleanText, productId }]);
 
         setIsSpeaking(true);
-        await speakBubble(bubbles[i], executive);
+        await speakBubble(cleanText, executive);
         setIsSpeaking(false);
       }
     } catch (e) {
@@ -219,11 +225,13 @@ export default function ChatScreen({ executive, onBack }) {
               {m.content}
             </div>
           ) : (
-            <div
-              key={idx}
-              className="animate-rise self-start max-w-[85%] px-1 py-1 text-[14px] leading-relaxed text-slate italic"
-            >
-              {m.content}
+            <div key={idx} className="flex flex-col gap-2 items-start">
+              {m.content && (
+                <div className="animate-rise self-start max-w-[85%] px-1 py-1 text-[14px] leading-relaxed text-slate italic">
+                  {m.content}
+                </div>
+              )}
+              {m.productId && <ProductCard productId={m.productId} />}
             </div>
           )
         )}
