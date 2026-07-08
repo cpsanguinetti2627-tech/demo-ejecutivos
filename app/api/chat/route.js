@@ -1,4 +1,5 @@
 import { getExecutive } from '@/lib/executives';
+import { catalogAsText, CATALOG_MONTH } from '@/lib/catalog';
 
 export const runtime = 'nodejs';
 
@@ -9,6 +10,17 @@ function toGeminiContents(messages) {
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }));
+}
+
+function buildSystemPrompt(executive) {
+  return `${executive.systemPrompt}
+
+CATÁLOGO Y PROMOCIONES VIGENTES (${CATALOG_MONTH}) — usa esta información real para responder
+sobre productos, precios y promociones. Si el cliente pregunta por algo que no está en
+esta lista, dile con naturalidad que no maneja ese producto ahora mismo, en vez de
+inventar un precio o promoción que no existe:
+
+${catalogAsText()}`;
 }
 
 export async function POST(req) {
@@ -35,7 +47,7 @@ export async function POST(req) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: {
-          parts: [{ text: executive.systemPrompt }],
+          parts: [{ text: buildSystemPrompt(executive) }],
         },
         contents: toGeminiContents(messages),
         generationConfig: {
